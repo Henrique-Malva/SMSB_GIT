@@ -4,6 +4,17 @@
 #define trig 3
 #define echo 2
 
+#define ledG 4
+#define ledR 5
+
+enum{
+  blinking,
+  stable
+}signal_state;
+
+bool led_st=1;
+unsigned long int led_temp;
+
 short int state;
 //state guide
   //0-follow_free,
@@ -45,6 +56,10 @@ void setup() {
   Serial.begin(38400); // Default communication rate of the Bluetooth module
 
   state = 0; // Initialization of first formation state
+  pinMode(ledR, OUTPUT);
+  pinMode(ledG, OUTPUT);
+  signal_state=blinking;
+  led_temp=millis();
 }
 
 void loop() {
@@ -56,7 +71,25 @@ void loop() {
   if(receive_data[5]){ //only changes if button was pressed
     state = receive_data[3]*2 + receive_data[4]; }//s1(0or1)*2 + s2(0or1) - ns1 and ns2 = 0 (free) - ns1 and s2 = 1 (side) - s1 and ns2 = 2(behind) - s1 and s2 = 3 (circ)
   
-  //insert light control
+  //light control
+  switch(signal_state){
+    case blinking:
+      if(millis()-led_temp > 300){
+        digitalWrite(ledG,led_st);
+        digitalWrite(ledR,!led_st);
+        led_st=!led_st;
+        led_temp=millis();
+      }
+      if(receive_data[5]){
+        signal_state=stable;
+        digitalWrite(ledG,1);
+        digitalWrite(ledR,1);
+      }
+    break;
+    case stable:
+      if(receive_data[5]){signal_state=blinking; led_temp=millis();}
+    break;  
+  }
 
   switch(state){
     case 0: //follow_free
