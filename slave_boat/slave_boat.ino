@@ -25,7 +25,7 @@ short int state;
 short int receive_data[6]={}; // joyX,joyY,pot,s1,s2,btn
 short int temp;
 
-Servo rudder, radar;
+Servo rudder, sonar;
 
 long measureDistance() {
   unsigned long int duration, distance;
@@ -49,7 +49,7 @@ long measureDistance() {
 
 void setup() {
   rudder.attach(6);
-  radar.attach(7);
+  sonar.attach(7);
   pinMode(trig, OUTPUT);
   pinMode(echo, INPUT);
   
@@ -99,12 +99,38 @@ void loop() {
 
     case 1: //follow_side
 
+    //replace this to be in transition
+      sonar.write(135);
+      rudder.write(150);
+      while(measureDistance() > 10){
+        //motor speed + motor speed * cos60
+        //millisdelay for measureDistance
+        //make it without while
+      }
+      sonar.write(180);
+      rudder.write(90);
+      while(measureDistance() > 10){
+        //motor speed *1.5 (max value accounted for)
+      }
     
     break;
 
     case 2: // follow_behind
 
-    
+    //replace this to be in transition
+      sonar.write(135);
+      rudder.write(90);
+      while(measureDistance() > 10){
+        //motor speed *0.7
+        //millisdelay for measureDistance
+        //make it without while
+      }
+      sonar.write(90);
+      rudder.write(30);
+      while(measureDistance() > 10){
+        //motor speed + motor speed * cos60
+      }
+      rudder.write(90);
     break;
 
     case 3: // follow_circ

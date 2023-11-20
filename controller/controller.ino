@@ -54,7 +54,6 @@ int detect_press() {
 unsigned long prev_send=0, send_interval = 50;
 
 void setup() {
-  Serial.begin(9600);
   radio.begin();
   radio.openWritingPipe(address);
   radio.setPALevel(RF24_PA_MIN);
@@ -72,7 +71,7 @@ void setup() {
 }
 
 void loop() {
-  //if (radio.available()) {
+  if (radio.available()) {
     short int data[6];
     bool check;
 
@@ -83,11 +82,6 @@ void loop() {
     data[3] = digitalRead(switch1); // switch1 value (controls formation)
     data[4] = digitalRead(switch2); // switch2 value (controls sinalization)
     data[5] = detect_press(); // button value (controls formation)
-
-    for(int i=0;i<3;i++){
-      Serial.println(data[i]);
-    }
-    delay(100);
 
     if(millis() - prev_send >= send_interval){
       check = radio.write(data, sizeof(data));
@@ -102,5 +96,5 @@ void loop() {
           //print multiple temp values or reset screen aka only print one
       }
     }
-  //}
+  }
 }
