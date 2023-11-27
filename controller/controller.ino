@@ -65,8 +65,12 @@ void setup() {
     pinMode(i,INPUT); }
 
   TFTscreen.begin();
-  TFTscreen.background(176,5,51);
-  TFTscreen.stroke(21,100,179);
+  TFTscreen.background(193,21,21);
+  TFTscreen.stroke(16,233,195);
+  TFTscreen.line(0,0,160,0);
+  TFTscreen.line(0,0,0,128);
+  TFTscreen.line(160,0,160,128);
+  TFTscreen.line(0,128,160,128);
   TFTscreen.setTextSize(2);
 }
 
@@ -93,7 +97,6 @@ void loop() {
           TFTscreen.text("      ", 20, 20);
           String(temp).toCharArray(temp_str,4);
           TFTscreen.text(temp_str, 20, 20);
-          //print multiple temp values or reset screen aka only print one
       }
     }
   }
