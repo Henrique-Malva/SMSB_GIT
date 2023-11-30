@@ -57,6 +57,7 @@ void setup() {
   pinMode(pwmPin, OUTPUT);
   pinMode(brakePin, OUTPUT);
   digitalWrite(brakePin, LOW);
+  delay(1500);
 }
 
 void loop() {

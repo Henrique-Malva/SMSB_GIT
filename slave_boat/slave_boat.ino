@@ -33,6 +33,7 @@ short int temp;
 
 Servo rudder, sonar;
 unsigned short int sonar_angle=90;
+unsigned short int rudder_angle=90;
 
 unsigned int distance;
 unsigned long int son_time;
@@ -86,7 +87,11 @@ void setup() {
   pinMode(pwmPin, OUTPUT);
   pinMode(brakePin, OUTPUT);
   digitalWrite(brakePin, LOW);
+  delay(1500);
 }
+
+int first_check=0,first_doin=0,sec_doin=0,tr_doin=0;
+int i=0;
 
 void loop() {
   //read data sent from master via bluetooth
@@ -117,11 +122,11 @@ void loop() {
       if(receive_data[5]){signal_state=blinking; led_time=millis();}
     break;  
   }
-
+  
+  mtr_speed = receive_data[1];
+  
   switch(state){ //the cases are used to make the transition between formation states. After the transition and respective movimentation are done the slave boat can follow along in follow_free, meaning it'll stay in the same relative position
     case 0: //follow_free
-      mtr_speed = receive_data[1];
-  
       if(mtr_speed<0){
         digitalWrite(directionPin, HIGH);
         mtr_speed*=-1; 
@@ -129,114 +134,232 @@ void loop() {
       else{
         digitalWrite(directionPin, LOW);  
       }
-    
-      analogWrite(pwmPin, mtr_speed);
       
+      if(measureDistance() < 27 ){
+        mtr_speed *= 0.7;
+      }
+      if(measureDistance() > 33 ){
+        mtr_speed = constrain(mtr_speed*1.3,0,100);
+      }
+      
+      analogWrite(pwmPin, mtr_speed);
+      rudder_angle = receive_data[0];
       rudder.write(receive_data[0]);
     break;
 
     case 1: //follow_side
+      
       if(last_state==2){ //transition between follow_behind and follow_side (known starting location)
 
         //goes to the left faster than the master boat to create horizontal distance and keep up with it
         //sonar makes a 45º with the horizontal axis, horizontal distance to be 7,07cm  when measured distance <10cm and the boats are in a 45º angle with one another
         //assuming that the slave boat is aproaching vertically the master boat
-        sonar_angle=135;
-        sonar.write(135);
-        rudder.write(150);
-        while(measureDistance() > 10){
-          if(mtr_speed*2>100){
-            analogWrite(pwmPin, 100);
-          }else{
-            analogWrite(pwmPin, mtr_speed*2);
-          }
+        if(first_doin==0){
+          sonar_angle=135;
+          sonar.write(135);
+          rudder_angle=150;
+          rudder.write(150);
+          first_doin=1;
         }
-        //after that, goes straight faster than the master boat until the measured distance is inferior to 10cm (sonar at 180º, to the side, to detect when side by side)
-        sonar_angle=180;
-        sonar.write(180);
-        rudder.write(90);
-        while(measureDistance() > 10){
-          if(mtr_speed*1.5>100){
-            analogWrite(pwmPin, 100);
+        if(measureDistance() > 30 && first_check!=1){
+          mtr_speed = constrain(mtr_speed*2,0,100);
+          if(rudder_angle > 90){  
+            rudder_angle--;
+            rudder.write(rudder_angle);
+          }
+          analogWrite(pwmPin, mtr_speed);
+        }else{
+          //after that, starts going straight faster than the master boat until the measured distance is inferior to 10cm (sonar at 180º, to the side, to detect when side by side)
+          if(sec_doin==0){
+            first_check=1;
+            sonar_angle=180;
+            sonar.write(180);
+            rudder_angle=45;
+            rudder.write(45);
+            sec_doin=1;
+          }
+          if(measureDistance() > 30){
+            mtr_speed = constrain(mtr_speed*1.5,0,100);
+            analogWrite(pwmPin, mtr_speed);
+            if(rudder_angle < 90){  
+              rudder_angle++;
+              rudder.write(rudder_angle);
+            }
           }else{
-            analogWrite(pwmPin, mtr_speed*1.5);
+            state=first_check=first_doin=sec_doin=0;
           }
         }
       } else{ // any other to follow_side (unknown starting location)   //possible combination between both transition methods?
-        int i=0;
-        rudder.write(135);
-        analogWrite(pwmPin, 100);
-        while( cos(PI-(sonar_angle*PI/180))*measureDistance()<6.9 ){ //turns slightly to the left while the horizontal distance to the master boat is inferior to a certain threshold
-          if(i==25){sonar_angle++; sonar.write(sonar_angle); i=0;} //sonar_angle increase (every iteration would be too fast)
-          i++;
+        if(first_doin==0){
+          rudder_angle=135;
+          rudder.write(135);
+          analogWrite(pwmPin, 100);
+          first_doin=1;
         }
-        //after that, goes straight faster than the master boat until the measured distance is inferior to 10cm (sonar at 180º, to the side, to detect when side by side)
-        sonar_angle=180;
-        sonar.write(180);
-        rudder.write(90);
-        while(measureDistance() > 10){
-          if(mtr_speed*1.5>100){
-            analogWrite(pwmPin, 100);
-          }else{
-            analogWrite(pwmPin, mtr_speed*1.5);
+        if(first_check!=1 && cos(PI-(sonar_angle*PI/180))*measureDistance()<20){ //turns slightly to the left while the horizontal distance to the master boat is inferior to a certain threshold
+          if(i==15){sonar_angle++; sonar.write(sonar_angle); i=0;} //sonar_angle increase (every iteration would be too fast)
+          i++;
+          if(rudder_angle > 90){  
+            rudder_angle--;
+            rudder.write(rudder_angle);
           }
         }
+        //after that, starts going straight faster than the master boat until the measured distance is inferior to 10cm (sonar at 180º, to the side, to detect when side by side)
+        if(sec_doin==0){
+          sonar_angle=180;
+          sonar.write(180);
+          rudder_angle=45;
+          rudder.write(45);
+          sec_doin=1;
+        }
+        if(measureDistance() > 30){
+          mtr_speed = constrain(mtr_speed*1.5,0,100);
+          if(rudder_angle < 90){  
+            rudder_angle++;
+            rudder.write(rudder_angle);
+          }
+          analogWrite(pwmPin, mtr_speed);
+        }else{
+          state=first_check=first_doin=sec_doin=0;
+          i=0;
+        }
       }
-      state=0;
+      
     break;
 
     case 2: // follow_behind
       if(last_state==1){ //transition from side to behind
         //slows down until two boats make a 45º angle
-        sonar_angle=135;
-        sonar.write(135);
-        rudder.write(90);
-        while(measureDistance() > 10){
-          analogWrite(pwmPin, mtr_speed*0.7);
+        if(first_doin==0){
+          first_doin=1;
+          sonar_angle=135;
+          sonar.write(135);
+          rudder_angle=90;
+          rudder.write(90);
         }
-
-        //sonar at 90º to detect when slave boat is behind master, slave boat going to the right with compensated speed to keep up with master
-        sonar_angle=90;
-        sonar.write(90);
-        rudder.write(30);
-        while(measureDistance() > 10){
-          if(mtr_speed*2>100){
-            analogWrite(pwmPin, 100);
+        if(measureDistance() > 30 && first_check!=1){
+          analogWrite(pwmPin, mtr_speed*0.7);
+        }else{
+          //sonar at 65º to detect when slave boat should start straightening, slave boat going to the right with compensated speed to keep up with master
+          if(sec_doin==0){
+            sec_doin=1;
+            first_check=1;
+            sonar_angle=65;
+            sonar.write(65);
+            rudder_angle=30;
+            rudder.write(30);
+          }
+          if(measureDistance() > 30){
+            mtr_speed = constrain(mtr_speed*2,0,100);
+            analogWrite(pwmPin, mtr_speed);
+            if(rudder_angle < 90){  
+              rudder_angle++;
+              rudder.write(rudder_angle);
+            }
           }else{
-            analogWrite(pwmPin, mtr_speed*2);
+            //then starts going straigt
+            if(tr_doin==0){
+              sonar_angle=90;
+              sonar.write(90);
+              rudder_angle=150;
+              rudder.write(150);
+              tr_doin=1;
+            }
+            if(measureDistance() > 30){
+              mtr_speed = constrain(mtr_speed*1.5,0,100);
+              analogWrite(pwmPin, mtr_speed);
+              if(rudder_angle > 90){  
+                rudder_angle--;
+                rudder.write(rudder_angle);
+              }
+            }else{
+              rudder_angle=90;
+              rudder.write(90);
+              state=first_check=first_doin=sec_doin=0;}
           }
         }
-
-        //then goes straigt
-        rudder.write(90);
       } else {
-        int i=0;
-        rudder.write(90);
-        analogWrite(pwmPin, mtr_speed*0.6);
-        while( sin((sonar_angle*PI/180))*measureDistance()<6.9 ){ //turns slightly to the left while the vertical distance to the master boat is inferior to a certain threshold
+        if(first_doin==0){
+          first_doin=1;
+          rudder.write(90);
+          rudder_angle=90;
+          analogWrite(pwmPin, mtr_speed*0.6);
+        }
+        
+        if(first_check!=1 && sin((sonar_angle*PI/180))*measureDistance()<20 ){ //turns slightly to the left while the vertical distance to the master boat is inferior to a certain threshold
           if(i==25){sonar_angle--; sonar.write(sonar_angle); i=0;} //sonar_angle decrease (every iteration would be too fast)
           i++;
-        }
-        //after that sonar at 90º to detect when slave boat is behind master, slave boat going to the right with compensated speed to keep up with master
-        sonar_angle=90;
-        sonar.write(90);
-        rudder.write(30);
-        while(measureDistance() > 10){
-          if(mtr_speed*2>100){
-            analogWrite(pwmPin, 100);
+        }else{
+          //after that sonar at 90º to detect when slave boat is behind master, slave boat going to the right with compensated speed to keep up with master
+          if(sec_doin==0){
+            sec_doin=1;
+            first_check=1;
+            sonar_angle=65;
+            sonar.write(65);
+            rudder_angle=30;
+            rudder.write(30);
+          }
+          if(measureDistance() > 30){
+            mtr_speed = constrain(mtr_speed*2,0,100);
+            analogWrite(pwmPin, mtr_speed);
+            if(rudder_angle < 90){  
+              rudder_angle++;
+              rudder.write(rudder_angle);
+            }
           }else{
-            analogWrite(pwmPin, mtr_speed*2);
+            //then starts going straigt
+            if(tr_doin==0){
+              sonar_angle=90;
+              sonar.write(90);
+              rudder_angle=150;
+              rudder.write(150);
+              tr_doin=1;
+            }
+            if(measureDistance() > 30){
+              mtr_speed = constrain(mtr_speed*1.5,0,100);
+              analogWrite(pwmPin, mtr_speed);
+              if(rudder_angle > 90){  
+                rudder_angle--;
+                rudder.write(rudder_angle);
+              }
+            }else{
+              rudder_angle=90;
+              rudder.write(90);
+              state=first_check=first_doin=sec_doin=0;}
           }
         }
-
-        //then goes straigt
-        rudder.write(90);
       }
-      state=0;
     break;
 
     case 3: // follow_circ
 
+      // Proportional control for rudder adjustment
+      //int desiredRudderAngle = 90; // Adjust this based on your requirements
+      //int rudderError = newSonarAngle - desiredRudderAngle;
+
+      // Use proportional control to adjust the rudder angle
+      //int proportionalTerm = 2; // Experiment with this value
+      //int rudderCorrection = proportionalTerm * rudderError;
+
+      // Calculate the new rudder angle
+      //int newRudderAngle = receive_data[0] - rudderCorrection;
+
+      // Ensure that the new rudder angle is within valid limits (0 to 180 degrees)
+      //newRudderAngle = constrain(newRudderAngle, 0, 180);
+
+      // Set the rudder angle
+      //rudder.write(newRudderAngle);
+
+      // Adjust the boat's speed as needed
+      mtr_speed = receive_data[1];
+      if (mtr_speed < 0) {
+        digitalWrite(directionPin, HIGH);
+        mtr_speed *= -1;
+      } else {
+        digitalWrite(directionPin, LOW);
+      }
+
+      analogWrite(pwmPin, mtr_speed);
     
     break;
 
