@@ -10,7 +10,7 @@
 #define pot A3
 int switch1 = 2;
 int switch2 = 3;
-int button = 4;
+int button = A5;
 
 // screen variables
 int x_Position=0, y_Position=0;
@@ -29,7 +29,8 @@ unsigned int deb_delay = 50;
 int check=0;
 
 int detect_press() {
-  bool curr_state = digitalRead(button);
+  bool curr_state;
+  if(analogRead(button)>512){curr_state=true;} else{curr_state=false;} 
   if(curr_state != last_button_state){ //mudou estado em relação ao anterior, muda o last_deb
     last_deb = millis();
   }
