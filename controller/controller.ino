@@ -10,7 +10,7 @@
 #define pot A3
 int switch1 = 2;
 int switch2 = 3;
-int button = 4;
+int button = A5;
 
 // screen variables
 int x_Position=0, y_Position=0;
@@ -29,7 +29,8 @@ unsigned int deb_delay = 50;
 int check=0;
 
 int detect_press() {
-  bool curr_state = digitalRead(button);
+  bool curr_state;
+  if(analogRead(button)>512){curr_state=true;} else{curr_state=false;} 
   if(curr_state != last_button_state){ //mudou estado em relação ao anterior, muda o last_deb
     last_deb = millis();
   }
@@ -54,7 +55,6 @@ int detect_press() {
 unsigned long prev_send=0, send_interval = 50;
 
 void setup() {
-  Serial.begin(9600);
   radio.begin();
   radio.openWritingPipe(address);
   radio.setPALevel(RF24_PA_MIN);
@@ -66,13 +66,17 @@ void setup() {
     pinMode(i,INPUT); }
 
   TFTscreen.begin();
-  TFTscreen.background(176,5,51);
-  TFTscreen.stroke(21,100,179);
+  TFTscreen.background(193,21,21);
+  TFTscreen.stroke(16,233,195);
+  TFTscreen.line(0,0,160,0);
+  TFTscreen.line(0,0,0,128);
+  TFTscreen.line(160,0,160,128);
+  TFTscreen.line(0,128,160,128);
   TFTscreen.setTextSize(2);
 }
 
 void loop() {
-  //if (radio.available()) {
+  if (radio.available()) {
     short int data[6];
     bool check;
 
@@ -84,11 +88,6 @@ void loop() {
     data[4] = digitalRead(switch2); // switch2 value (controls sinalization)
     data[5] = detect_press(); // button value (controls formation)
 
-    for(int i=0;i<3;i++){
-      Serial.println(data[i]);
-    }
-    delay(100);
-
     if(millis() - prev_send >= send_interval){
       check = radio.write(data, sizeof(data));
       prev_send=millis();
@@ -99,8 +98,7 @@ void loop() {
           TFTscreen.text("      ", 20, 20);
           String(temp).toCharArray(temp_str,4);
           TFTscreen.text(temp_str, 20, 20);
-          //print multiple temp values or reset screen aka only print one
       }
     }
-  //}
+  }
 }
