@@ -1,3 +1,4 @@
+#include "DHT.h"
 #include <Servo.h>
 #include <SPI.h>
 #include <nRF24L01.h>
@@ -6,10 +7,15 @@
 #define ledG 4
 #define ledR 5
 
+#define DHTPIN 2
+#define DHTTYPE DHT11
+
+DHT dht(DHTPIN, DHTTYPE);
+
 //motor variables
-short int directionPin = 12;
 short int pwmPin = 3;
-short int brakePin = 9;
+short int dirPin1 = 8;
+short int dirPin2 = 9;
 short int mtr_speed = 0;
 
 // radio initialization
@@ -31,7 +37,10 @@ unsigned long int led_temp;
 //servo initialization
 Servo rudder;
 
+short int state_transition=0;
+
 void setup() {
+  dht.begin();
   //servo setup
   rudder.attach(6);
   rudder.write(90);
@@ -44,7 +53,7 @@ void setup() {
   radio.startListening();
   radio.writeAckPayload(1, &ackTemp, sizeof(ackTemp));
 
-  Serial.begin(38400); // Default communication rate of the Bluetooth module
+  Serial.begin(9600); // Default communication rate of the Bluetooth module
 
   //signalization setup
   pinMode(ledR, OUTPUT);
@@ -53,33 +62,45 @@ void setup() {
   led_temp=millis();
 
   //motor setup
-  pinMode(directionPin, OUTPUT);
   pinMode(pwmPin, OUTPUT);
-  pinMode(brakePin, OUTPUT);
-  digitalWrite(brakePin, LOW);
-  delay(1500);
+  pinMode(dirPin1, OUTPUT);
+  pinMode(dirPin2, OUTPUT);
+  digitalWrite(dirPin1, HIGH);
+  digitalWrite(dirPin2, LOW);
+  delay(2000);
 }
 
 void loop() {
   if ( radio.available() ) {
       radio.read(receive_data, sizeof(receive_data) );
-      //ackTemp = read temperature
+      ackTemp = dht.readTemperature();
       radio.writeAckPayload(1, &ackTemp, sizeof(ackTemp));
   }
+
+  //send to second boat
+  String data = String(receive_data[0]) + "," + String(receive_data[1]) + "," + String(receive_data[2]) + "," + String(receive_data[3]) + "," + String(receive_data[4]) + "," + String(receive_data[5])+ "," + String(ackTemp);
+  Serial.write(data.c_str());
+  //state_transition = Serial.read();
 
   mtr_speed = receive_data[1];
   
   if(mtr_speed<0){
-    digitalWrite(directionPin, HIGH);
-    mtr_speed*=-1; 
+    digitalWrite(dirPin2, LOW);
+    digitalWrite(dirPin1, HIGH);
+    mtr_speed*=-0.3; 
   }
   else{
-    digitalWrite(directionPin, LOW);  
+    digitalWrite(dirPin1, LOW);
+    digitalWrite(dirPin2, HIGH);  
   }
 
   analogWrite(pwmPin, mtr_speed);
+  if(state_transition==0){
+    rudder.write(receive_data[0]);  
+  }else{
+    rudder.write(90);
+  }
   
-  rudder.write(receive_data[0]);
   
   //light control
   switch(signal_state){
@@ -101,8 +122,5 @@ void loop() {
     break;  
   }
   
-  //send to second boat
-  String data = String(receive_data[0]) + "," + String(receive_data[1]) + "," + String(receive_data[2]) + "," + String(receive_data[3]) + "," + String(receive_data[4]) + "," + String(receive_data[5])+ "," + String(ackTemp);
-  Serial.write(data.c_str());
-  delay(50);
+  delay(250);
 }

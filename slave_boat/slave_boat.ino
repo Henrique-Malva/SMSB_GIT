@@ -98,6 +98,7 @@ void loop() {
   if(Serial.available()>0){
     String values = Serial.readString();
     sscanf(values.c_str(), "%d,%d,%d,%d,%d,%d,%d",&receive_data[0],&receive_data[1],&receive_data[2],&receive_data[3],&receive_data[4],&receive_data[5],&temp);
+    Serial.print(state);
   }
   if(receive_data[5] && receive_data[1]>=0 && actual_state!=(receive_data[3]*2 + receive_data[4]) ){ //only changes if button was pressed and if boats are going forward
     last_state = actual_state;

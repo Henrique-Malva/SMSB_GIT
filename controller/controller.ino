@@ -15,8 +15,9 @@ int button = A5;
 // screen variables
 int x_Position=0, y_Position=0;
 
-// screen initialization
-TFT TFTscreen = TFT(6, 8, 9);
+
+// screen initialization //cs, dc rst
+TFT TFTscreen = TFT(5, 8, 9);
 
 // radio initialization
 RF24 radio(7, 10); // CE, CSN
@@ -52,53 +53,77 @@ int detect_press() {
   return button_pressed;
 }
 
-unsigned long prev_send=0, send_interval = 50;
+unsigned long prev_send=0, send_interval = 250;
 
 void setup() {
   radio.begin();
   radio.openWritingPipe(address);
   radio.setPALevel(RF24_PA_MIN);
+  radio.stopListening();
   radio.setDataRate( RF24_250KBPS );
   radio.enableAckPayload();
   radio.setRetries(5,5); // delay, count
   
-  for(int i=2; i<=4; i++){
+  for(int i=2; i<=3; i++){
     pinMode(i,INPUT); }
 
   TFTscreen.begin();
-  TFTscreen.background(193,21,21);
-  TFTscreen.stroke(16,233,195);
-  TFTscreen.line(0,0,160,0);
-  TFTscreen.line(0,0,0,128);
-  TFTscreen.line(160,0,160,128);
-  TFTscreen.line(0,128,160,128);
-  TFTscreen.setTextSize(2);
+  //b,g,r
+  TFTscreen.background(0,0,255);
+  TFTscreen.fill(0,102,0);
+  TFTscreen.rect(0,0,64,128);
+  TFTscreen.fill(0,255,255);
+  TFTscreen.circle(64,64,32);
+  TFTscreen.stroke(0,0,255);
+  TFTscreen.line(48,42,80,42);
+  TFTscreen.line(48,42,48,71);
+  TFTscreen.line(80,42,80,71);
+  TFTscreen.line(48,71,64,86);
+  TFTscreen.line(64,86,80,71);
+  TFTscreen.stroke(255,0,0);
+  TFTscreen.setTextSize(1);
+  delay(2000);
 }
 
+short int data[6]={90,0,0,0,0,0};
+
 void loop() {
-  if (radio.available()) {
-    short int data[6];
-    bool check;
+  //TFTscreen.text("                   ", 80, 20);
+  //TFTscreen.text("                   ", 80, 30);
+  //TFTscreen.text("                   ", 80, 40);
+  
+  //sprintf(val,"X: %d Y: %d",data[0],data[1]);
+  //TFTscreen.text(val, 80, 20);
+  //sprintf(val,"Pot: %d",data[2]);
+  //TFTscreen.text(val, 80, 30);
+  //sprintf(val,"s1:%d s2:%d bt:%d",data[3],data[4],data[5]);
+  //TFTscreen.text(val, 80, 40);
+  //char val[20];
+  
+  bool check;
 
-    // Read analog values
-    data[0] = map(analogRead(potX),0,1023,30,150); // joystick X axis value - servo goes from 30º to 150º
-    data[1] = map(analogRead(potY),0,1023,-512,512); // joystick Y axis value
-    data[2] = analogRead(pot); // potenciometer value
-    data[3] = digitalRead(switch1); // switch1 value (controls formation)
-    data[4] = digitalRead(switch2); // switch2 value (controls sinalization)
-    data[5] = detect_press(); // button value (controls formation)
-
-    if(millis() - prev_send >= send_interval){
-      check = radio.write(data, sizeof(data));
-      prev_send=millis();
-      if (check && radio.isAckPayloadAvailable()) {
-          int temp;
-          char temp_str[4];
-          radio.read(&temp, sizeof(temp));
-          TFTscreen.text("      ", 20, 20);
-          String(temp).toCharArray(temp_str,4);
-          TFTscreen.text(temp_str, 20, 20);
-      }
+  // Read analog values
+  data[0] = map(analogRead(potX),0,1023,30,150); // joystick X axis value - servo goes from 30º to 150º
+  data[1] = map(analogRead(potY),0,1023,-255,255); // joystick Y axis value
+  data[2] = analogRead(pot); // potenciometer value
+  data[3] = digitalRead(switch1); // switch1 value (controls formation)
+  data[4] = digitalRead(switch2); // switch2 value (controls sinalization)
+  data[5] = detect_press(); // button value (controls formation)
+  if(data[1]>-70 && data[1]<70){
+    data[1]=0;  
+  }
+  
+  if(millis() - prev_send >= send_interval){
+    check = radio.write(data, sizeof(data));
+    prev_send=millis();
+    if (check && radio.isAckPayloadAvailable()) {
+        int temp;
+        char temp_str[4];
+        radio.read(&temp, sizeof(temp));
+        TFTscreen.text("      ", 64, 64);
+        String(temp).toCharArray(temp_str,4);
+        TFTscreen.text(temp_str, 64, 64);
     }
   }
+  
 }
