@@ -14,7 +14,7 @@ int button = A5;
 
 // screen variables
 int x_Position=0, y_Position=0;
-
+int l_t=0;
 
 // screen initialization //cs, dc rst
 TFT TFTscreen = TFT(5, 8, 9);
@@ -104,11 +104,16 @@ void loop() {
 
   // Read analog values
   data[0] = map(analogRead(potX),0,1023,30,150); // joystick X axis value - servo goes from 30º to 150º
-  data[1] = map(analogRead(potY),0,1023,-255,255); // joystick Y axis value
+  data[1] = map(analogRead(potY),0,1023,-150,150); // joystick Y axis value
   data[2] = analogRead(pot); // potenciometer value
   data[3] = digitalRead(switch1); // switch1 value (controls formation)
   data[4] = digitalRead(switch2); // switch2 value (controls sinalization)
-  data[5] = detect_press(); // button value (controls formation)
+  if(analogRead(button)>512 && last_button_state!=1){ // button value (controls formation)
+    data[5]=1;
+  }else{
+    data[5]=last_button_state=0;
+  }
+  
   if(data[1]>-70 && data[1]<70){
     data[1]=0;  
   }
@@ -116,14 +121,27 @@ void loop() {
   if(millis() - prev_send >= send_interval){
     check = radio.write(data, sizeof(data));
     prev_send=millis();
+    if(data[5]==1){
+      last_button_state=1;  
+    }
     if (check && radio.isAckPayloadAvailable()) {
         int temp;
         char temp_str[4];
         radio.read(&temp, sizeof(temp));
-        TFTscreen.text("      ", 64, 64);
-        String(temp).toCharArray(temp_str,4);
-        TFTscreen.text(temp_str, 64, 64);
+        if(l_t!=temp){
+          TFTscreen.fill(0,255,255);
+          TFTscreen.circle(64,64,32);
+          TFTscreen.stroke(0,0,255);
+          TFTscreen.line(48,42,80,42);
+          TFTscreen.line(48,42,48,71);
+          TFTscreen.line(80,42,80,71);
+          TFTscreen.line(48,71,64,86);
+          TFTscreen.line(64,86,80,71);
+          TFTscreen.stroke(255,0,0);
+          String(temp).toCharArray(temp_str,4);
+          l_t=temp;
+          TFTscreen.text(temp_str, 64, 64);
+        }
     }
   }
-  
 }

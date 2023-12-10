@@ -21,7 +21,7 @@ short int mtr_speed = 0;
 // radio initialization
 RF24 radio(7, 10); // CE, CSN
 const byte address[6] = "00001"; // Address to send the data
-short int receive_data[6]={}; // joyX,joyY,pot,s1,s2,btn
+short int receive_data[6]={90,0,0,0,0,0}; // joyX,joyY,pot,s1,s2,btn
 short int ackTemp=0;
 
 //light state machine states
@@ -38,6 +38,8 @@ unsigned long int led_temp;
 Servo rudder;
 
 short int state_transition=0;
+
+int prev_send=0;
 
 void setup() {
   dht.begin();
@@ -71,16 +73,18 @@ void setup() {
 }
 
 void loop() {
+  //send to second boat
+  if(millis()-prev_send>600){
+    String data = "<"+String(receive_data[0]) + "," + String(receive_data[1]) + "," + String(receive_data[2]) + "," + String(receive_data[3]) + "," + String(receive_data[4]) + "," + String(receive_data[5])+ "," + String(ackTemp)+"<";
+    Serial.print(data);
+    prev_send=millis();
+  }
+  
   if ( radio.available() ) {
       radio.read(receive_data, sizeof(receive_data) );
       ackTemp = dht.readTemperature();
       radio.writeAckPayload(1, &ackTemp, sizeof(ackTemp));
   }
-
-  //send to second boat
-  String data = String(receive_data[0]) + "," + String(receive_data[1]) + "," + String(receive_data[2]) + "," + String(receive_data[3]) + "," + String(receive_data[4]) + "," + String(receive_data[5])+ "," + String(ackTemp);
-  Serial.write(data.c_str());
-  //state_transition = Serial.read();
 
   mtr_speed = receive_data[1];
   
@@ -94,7 +98,11 @@ void loop() {
     digitalWrite(dirPin2, HIGH);  
   }
 
-  analogWrite(pwmPin, mtr_speed);
+  if(Serial.available()){
+    state_transition = Serial.read();
+  }
+
+  
   if(state_transition==0){
     rudder.write(receive_data[0]);  
   }else{
@@ -121,6 +129,7 @@ void loop() {
       if(receive_data[5]){signal_state=blinking; led_temp=millis();}
     break;  
   }
+  analogWrite(pwmPin, mtr_speed);
   
   delay(250);
 }
