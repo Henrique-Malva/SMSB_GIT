@@ -72,18 +72,29 @@ void setup() {
   delay(2000);
 }
 
+int was_sent=0, to_be_sent=1;
+
 void loop() {
   //send to second boat
   if(millis()-prev_send>600){
     String data = "<"+String(receive_data[0]) + "," + String(receive_data[1]) + "," + String(receive_data[2]) + "," + String(receive_data[3]) + "," + String(receive_data[4]) + "," + String(receive_data[5])+ "," + String(ackTemp)+"<";
     Serial.print(data);
     prev_send=millis();
+    if(receive_data[5]==1){
+      to_be_sent=0;
+    }
   }
   
   if ( radio.available() ) {
       radio.read(receive_data, sizeof(receive_data) );
       ackTemp = dht.readTemperature();
       radio.writeAckPayload(1, &ackTemp, sizeof(ackTemp));
+      if(receive_data[5]==1){
+        to_be_sent=1;
+      }
+      if(receive_data[5]==0 && to_be_sent==1){
+        receive_data[5]=1;
+      }
   }
 
   mtr_speed = receive_data[1];
