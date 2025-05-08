@@ -76,7 +76,7 @@ int was_sent=0, to_be_sent=1;
 
 void loop() {
   //send to second boat
-  if(millis()-prev_send>600){
+  if(millis()-prev_send>700){
     String data = "<"+String(receive_data[0]) + "," + String(receive_data[1]) + "," + String(receive_data[2]) + "," + String(receive_data[3]) + "," + String(receive_data[4]) + "," + String(receive_data[5])+ "," + String(ackTemp)+"<";
     Serial.print(data);
     prev_send=millis();
@@ -109,7 +109,7 @@ void loop() {
     digitalWrite(dirPin2, HIGH);  
   }
 
-  if(Serial.available()){
+  if(Serial.available()>0){
     state_transition = Serial.read();
   }
 
